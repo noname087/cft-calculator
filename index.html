@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เครื่องคิดเลข CFT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: navy dock-sheet header, big amber total on top, item rows below that stack into cards on phones, worked steps at the end. Single light theme by choice (printed-poster look). */
+:root{
+  --ink:#0B2545;
+  --paper:#FBF8F1;
+  --card:#FFFFFF;
+  --amber:#FFB703;
+  --tint:#FFF1CC;
+  --line:#B9B29F;
+  --muted:#44505F;
+  --err:#B3261E;
+  --focus:#1B5FD1;
+  --display:'Prompt','Sarabun',system-ui,sans-serif;
+  --body:'Sarabun','Prompt',system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:400 17px/1.55 var(--body)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+
+/* header */
+header{background:var(--ink);color:#fff}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-top:26px;padding-bottom:26px}
+.kicker{font:600 15px/1.5 var(--display);letter-spacing:.04em;color:var(--amber)}
+h1{margin:0;font:700 clamp(40px,8vw,64px)/1.3 var(--display);color:#fff;text-wrap:balance}
+h1 span{color:var(--amber)}
+.sub{margin:0;font:500 clamp(17px,3vw,22px)/1.5 var(--display);color:#fff}
+header svg{flex:none;width:150px;height:auto}
+
+main{display:flex;flex-direction:column;gap:18px;padding-top:22px;padding-bottom:48px}
+
+/* cards */
+.panel{background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:16px 18px}
+h2{margin:0 0 10px;font:600 20px/1.4 var(--display);text-wrap:balance}
+
+/* summary tiles */
+.tiles{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:14px}
+.tile{background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:12px 18px}
+.tile.main{background:var(--amber)}
+.tile .k{font:600 15px/1.5 var(--display)}
+.tile .v{font:700 clamp(34px,6vw,52px)/1.25 var(--display);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tile .v small{font-size:.45em;font-weight:600;margin-left:6px}
+.tile .n{font-size:15px;line-height:1.4}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:14px 32px;align-items:flex-end}
+.ctl-label{display:block;margin-bottom:6px;font:600 15px/1.5 var(--display)}
+.seg{display:flex;border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:#fff}
+.seg label{position:relative;display:block}
+.seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.seg span{display:grid;place-items:center;min-width:58px;min-height:44px;padding:0 14px;font:600 16px var(--display)}
+.seg label + label span{border-left:2px solid var(--ink)}
+.seg input:checked + span{background:var(--ink);color:var(--amber)}
+.seg input:focus-visible + span{outline:3px solid var(--focus);outline-offset:-5px}
+select{min-height:44px;padding:0 12px;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink);font:600 16px var(--display)}
+.note{margin:10px 0 0;font-size:15px;line-height:1.5;color:var(--muted)}
+
+/* item rows */
+.items{display:flex;flex-direction:column;gap:10px}
+.hdr,.row{display:grid;grid-template-columns:minmax(100px,1.3fr) repeat(3,86px) 72px repeat(3,minmax(84px,1fr)) 44px;gap:10px;align-items:center}
+.hdr{padding-bottom:6px;border-bottom:2px solid var(--ink);font:600 14px/1.4 var(--display);color:var(--muted)}
+.hdr .r{text-align:right}
+.f{display:block;min-width:0}
+.lab{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+input.fld{width:100%;min-width:0;height:44px;padding:0 10px;border:2px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:500 17px var(--display);font-variant-numeric:tabular-nums}
+input.fld.num{text-align:right}
+input.fld:focus{border-color:var(--ink)}
+input.fld[aria-invalid="true"]{border-color:var(--err);background:#FDF1F0}
+.res{min-width:0;text-align:right;font:600 17px/1.4 var(--display);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.res.strong{font-weight:700}
+.res::before{display:none}
+.rm{width:44px;height:44px;display:grid;place-items:center;border:2px solid transparent;border-radius:10px;background:transparent;color:var(--ink);cursor:pointer}
+.rm:hover{border-color:var(--ink);background:var(--tint)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.btn{min-height:44px;padding:0 18px;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink);font:600 16px var(--display);cursor:pointer}
+.btn:hover{background:var(--tint)}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.primary:hover{background:#16396A}
+.hint{margin:0 0 12px;padding:8px 12px;border-radius:8px;background:var(--tint);font-size:16px}
+.empty{margin:0;padding:18px 0;color:var(--muted)}
+
+/* method */
+ol.steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+ol.steps li{display:flex;gap:12px;align-items:flex-start}
+.badge{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--amber);font:700 18px var(--display)}
+.st-k{font-size:15px;line-height:1.4;color:var(--muted)}
+.st-v{font:600 19px/1.5 var(--display);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.st-v b{font-weight:700}
+
+.foot{margin:0;font-size:14px;line-height:1.6;color:var(--muted)}
+#status{min-height:24px;font:600 15px/1.6 var(--display)}
+#fallback{display:none;width:100%;min-height:120px;margin-top:10px;padding:10px;border:2px solid var(--ink);border-radius:8px;font:500 15px/1.5 var(--body);color:var(--ink);background:#fff}
+
+@media (max-width:899px){
+  .hdr{display:none}
+  .row{grid-template-columns:repeat(12,1fr);gap:10px;padding:12px;background:#fff;border:2px solid var(--line);border-radius:12px}
+  .row .f-name{grid-column:span 9}
+  .row .rm{grid-column:span 3;justify-self:end}
+  .row .f-n{grid-column:span 3}
+  .row .res{grid-column:span 4;text-align:left}
+  .row .res::before{display:block;content:attr(data-lab);font:500 13px/1.4 var(--body);color:var(--muted)}
+  .lab{position:static;width:auto;height:auto;overflow:visible;clip:auto;white-space:normal;margin-bottom:2px;font:500 13px/1.4 var(--body);color:var(--muted)}
+}
+@media (max-width:720px){
+  .tiles{grid-template-columns:1fr 1fr}
+  .tile.main{grid-column:1/-1}
+}
+@media (max-width:520px){
+  header svg{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div>
+      <div class="kicker">คู่มือโลจิสติกส์ · Cubic Feet</div>
+      <h1>คำนวณ <span>CFT</span></h1>
+      <p class="sub">ใส่ขนาดกล่อง ได้ลูกบาศก์ฟุตและ CBM ทันที</p>
+    </div>
+    <svg viewBox="0 0 270 240" role="img" aria-label="ภาพกล่องพัสดุ">
+      <polygon points="135,200 51,152 51,90 135,138" fill="#E0A85C" stroke="#0B2545" stroke-width="2" stroke-linejoin="round"/>
+      <polygon points="135,200 202,162 202,100 135,138" fill="#C48A45" stroke="#0B2545" stroke-width="2" stroke-linejoin="round"/>
+      <polygon points="135,138 51,90 118,52 202,100" fill="#F0C987" stroke="#0B2545" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="84" y1="71" x2="169" y2="119" stroke="#A56F33" stroke-width="10" opacity="0.55"/>
+    </svg>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="tiles" aria-label="ผลรวม">
+    <div class="tile main" role="status">
+      <div class="k">รวมทั้งหมด</div>
+      <div class="v"><span id="tot-cft">0.00</span><small>CFT</small></div>
+      <div class="n" id="tot-note">ลูกบาศก์ฟุต (ลบ.ฟุต)</div>
+    </div>
+    <div class="tile">
+      <div class="k">รวมเป็น CBM</div>
+      <div class="v"><span id="tot-cbm">0.000</span></div>
+      <div class="n">ลูกบาศก์เมตร (ลบ.ม.)</div>
+    </div>
+    <div class="tile">
+      <div class="k">จำนวนกล่อง</div>
+      <div class="v"><span id="tot-qty">0</span></div>
+      <div class="n" id="tot-rows">0 รายการ</div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-set">
+    <h2 id="h-set">ตั้งค่า</h2>
+    <div class="controls">
+      <div>
+        <span class="ctl-label" id="unit-label">หน่วยที่วัดขนาดกล่อง</span>
+        <div class="seg" role="radiogroup" aria-labelledby="unit-label" id="units">
+          <label><input type="radio" name="unit" id="u-mm" value="mm"><span>มม.</span></label>
+          <label><input type="radio" name="unit" id="u-cm" value="cm"><span>ซม.</span></label>
+          <label><input type="radio" name="unit" id="u-in" value="in"><span>นิ้ว</span></label>
+          <label><input type="radio" name="unit" id="u-ft" value="ft"><span>ฟุต</span></label>
+          <label><input type="radio" name="unit" id="u-m" value="m"><span>ม.</span></label>
+        </div>
+      </div>
+      <div>
+        <label class="ctl-label" for="dec">ทศนิยม CFT</label>
+        <select id="dec">
+          <option value="1">1 ตำแหน่ง</option>
+          <option value="2">2 ตำแหน่ง</option>
+          <option value="3">3 ตำแหน่ง</option>
+          <option value="4">4 ตำแหน่ง</option>
+        </select>
+      </div>
+    </div>
+    <p class="note">เปลี่ยนหน่วยแล้ว ตัวเลขในช่องจะไม่ถูกแปลง ระบบจะอ่านเป็นหน่วยใหม่ทันที</p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-items">
+    <h2 id="h-items">รายการกล่อง</h2>
+    <p class="hint" id="hint">ตอนนี้เป็นข้อมูลตัวอย่าง แก้ตัวเลขได้เลย หรือกด “เริ่มใหม่” เพื่อล้าง</p>
+    <div class="items" id="items"></div>
+    <p class="empty" id="empty" hidden>ยังไม่มีรายการ กด “เพิ่มรายการ” เพื่อเริ่มคำนวณ</p>
+    <div class="actions">
+      <button type="button" class="btn primary" id="add">+ เพิ่มรายการ</button>
+      <button type="button" class="btn" id="reset">เริ่มใหม่</button>
+      <button type="button" class="btn" id="copy">คัดลอกสรุป</button>
+    </div>
+    <div id="status" role="status"></div>
+    <textarea id="fallback" readonly aria-label="ข้อความสรุปสำหรับคัดลอก"></textarea>
+  </section>
+
+  <section class="panel" aria-labelledby="h-how">
+    <h2 id="h-how">วิธีคิด</h2>
+    <div id="how"></div>
+  </section>
+
+  <p class="foot">1 ลบ.ฟุต = 0.0283168 CBM · 1 CBM = 35.3147 ลบ.ฟุต · 1 ฟุต = 12 นิ้ว = 30.48 ซม. ค่าที่ได้เป็นการประมาณเบื้องต้น โปรดยืนยันกับผู้ให้บริการขนส่งก่อนใช้คิดค่าระวาง</p>
+</main>
+
+<script>
+(function () {
+  var UNITS = {
+    mm: { n: 'มม.', f: 0.001 },
+    cm: { n: 'ซม.', f: 0.01 },
+    'in': { n: 'นิ้ว', f: 0.0254 },
+    ft: { n: 'ฟุต', f: 0.3048 },
+    m: { n: 'ม.', f: 1 }
+  };
+  var CUFT = 0.028316846592; // ลบ.ม. ใน 1 ลบ.ฟุต
+  var S, uid = 0;
+
+  function blankRow() { return { id: ++uid, name: '', w: '', l: '', h: '', q: '1' }; }
+  function defaults() {
+    return {
+      unit: 'mm', dec: 2, active: null, example: true,
+      rows: [
+        { id: ++uid, name: 'กล่อง A', w: '600', l: '400', h: '300', q: '10' },
+        { id: ++uid, name: 'กล่อง B', w: '450', l: '350', h: '250', q: '24' }
+      ]
+    };
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var elItems = $('items'), elEmpty = $('empty'), elHint = $('hint'), elHow = $('how');
+
+  function num(s) {
+    if (s == null) return NaN;
+    var t = String(s).trim().replace(/,/g, '');
+    if (t === '') return NaN;
+    var v = Number(t);
+    return isFinite(v) ? v : NaN;
+  }
+  function fmt(x, d) { return x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function fmtT(x, max) { return x.toLocaleString('en-US', { maximumFractionDigits: max }); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function cbmDec() { return Math.max(3, S.dec); }
+
+  function calc(r) {
+    var f = UNITS[S.unit].f;
+    var w = num(r.w), l = num(r.l), h = num(r.h);
+    var q = String(r.q).trim() === '' ? 1 : num(r.q);
+    if (!(w > 0 && l > 0 && h > 0) || !(q >= 0)) return { ok: false };
+    var vol = w * l * h;
+    var m3 = vol * f * f * f;
+    var cft = m3 / CUFT;
+    return { ok: true, w: w, l: l, h: h, q: q, vol: vol, m3: m3, cft: cft, tot: cft * q, cbm: m3 * q };
+  }
+
+  function rowHtml(r) {
+    var p = 'r' + r.id + '-';
+    return '' +
+      '<label class="f f-name"><span class="lab">รายการ (ไม่บังคับ)</span><input class="fld" id="' + p + 'name" data-k="name" type="text" autocomplete="off" placeholder="ชื่อหรือรหัสสินค้า"></label>' +
+      '<label class="f f-n"><span class="lab">กว้าง (<span class="u"></span>)</span><input class="fld num" id="' + p + 'w" data-k="w" type="text" inputmode="decimal" autocomplete="off"></label>' +
+      '<label class="f f-n"><span class="lab">ยาว (<span class="u"></span>)</span><input class="fld num" id="' + p + 'l" data-k="l" type="text" inputmode="decimal" autocomplete="off"></label>' +
+      '<label class="f f-n"><span class="lab">สูง (<span class="u"></span>)</span><input class="fld num" id="' + p + 'h" data-k="h" type="text" inputmode="decimal" autocomplete="off"></label>' +
+      '<label class="f f-n"><span class="lab">จำนวน</span><input class="fld num" id="' + p + 'q" data-k="q" type="text" inputmode="numeric" autocomplete="off"></label>' +
+      '<div class="res" data-lab="CFT / ชิ้น"><span class="pc">—</span></div>' +
+      '<div class="res strong" data-lab="CFT รวม"><span class="tot">—</span></div>' +
+      '<div class="res" data-lab="CBM รวม"><span class="cbm">—</span></div>' +
+      '<button type="button" class="rm" aria-label="ลบรายการนี้"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3l12 12M15 3L3 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>';
+  }
+
+  function build() {
+    $('u-' + S.unit).checked = true;
+    $('dec').value = String(S.dec);
+    elItems.innerHTML = '';
+    if (S.rows.length) {
+      var hdr = document.createElement('div');
+      hdr.className = 'hdr';
+      hdr.setAttribute('aria-hidden', 'true');
+      hdr.innerHTML = '<div>รายการ</div><div class="r">กว้าง (<span class="u"></span>)</div><div class="r">ยาว (<span class="u"></span>)</div><div class="r">สูง (<span class="u"></span>)</div><div class="r">จำนวน</div><div class="r">CFT / ชิ้น</div><div class="r">CFT รวม</div><div class="r">CBM รวม</div><div></div>';
+      elItems.appendChild(hdr);
+    }
+    S.rows.forEach(function (r, i) {
+      var d = document.createElement('div');
+      d.className = 'row';
+      d.dataset.id = r.id;
+      d.innerHTML = rowHtml(r);
+      ['name', 'w', 'l', 'h', 'q'].forEach(function (k) { d.querySelector('[data-k="' + k + '"]').value = r[k]; });
+      d.querySelector('.rm').setAttribute('aria-label', 'ลบรายการที่ ' + (i + 1));
+      elItems.appendChild(d);
+    });
+    elEmpty.hidden = S.rows.length > 0;
+    update();
+  }
+
+  function update() {
+    var u = UNITS[S.unit].n;
+    Array.prototype.forEach.call(document.querySelectorAll('.u'), function (el) { el.textContent = u; });
+
+    var totCft = 0, totCbm = 0, totQty = 0, done = 0;
+    S.rows.forEach(function (r) {
+      var row = elItems.querySelector('.row[data-id="' + r.id + '"]');
+      if (!row) return;
+      ['w', 'l', 'h', 'q'].forEach(function (k) {
+        var inp = row.querySelector('[data-k="' + k + '"]');
+        var raw = String(r[k]).trim();
+        var v = num(raw);
+        var bad = raw !== '' && (isNaN(v) || (k === 'q' ? v < 0 : v <= 0));
+        if (bad) inp.setAttribute('aria-invalid', 'true'); else inp.removeAttribute('aria-invalid');
+      });
+      var c = calc(r);
+      if (c.ok) {
+        done++; totCft += c.tot; totCbm += c.cbm; totQty += c.q;
+        row.querySelector('.pc').textContent = fmt(c.cft, S.dec);
+        row.querySelector('.tot').textContent = fmt(c.tot, S.dec);
+        row.querySelector('.cbm').textContent = fmt(c.cbm, cbmDec());
+      } else {
+        row.querySelector('.pc').textContent = '—';
+        row.querySelector('.tot').textContent = '—';
+        row.querySelector('.cbm').textContent = '—';
+      }
+    });
+    $('tot-cft').textContent = fmt(totCft, S.dec);
+    $('tot-cbm').textContent = fmt(totCbm, cbmDec());
+    $('tot-qty').textContent = fmtT(totQty, 0);
+    $('tot-rows').textContent = 'คำนวณแล้ว ' + done + ' จาก ' + S.rows.length + ' รายการ';
+    $('tot-note').textContent = done < S.rows.length ? 'ยังมีรายการที่กรอกไม่ครบ ไม่ถูกนับรวม' : 'ลูกบาศก์ฟุต (ลบ.ฟุต)';
+    elHint.hidden = !S.example;
+    renderHow();
+  }
+
+  function renderHow() {
+    var row = null, i;
+    if (S.active != null) row = S.rows.filter(function (r) { return r.id === S.active; })[0] || null;
+    if (!row) row = S.rows.filter(function (r) { return calc(r).ok; })[0] || S.rows[0] || null;
+    if (!row) { elHow.innerHTML = '<p class="empty">เพิ่มรายการเพื่อดูขั้นตอนการคิด</p>'; return; }
+    var c = calc(row);
+    var idx = S.rows.indexOf(row) + 1;
+    var title = row.name.trim() ? esc(row.name.trim()) : 'รายการที่ ' + idx;
+    if (!c.ok) {
+      elHow.innerHTML = '<p class="empty">กรอก กว้าง ยาว สูง ของ “' + title + '” ให้ครบ ระบบจะแสดงขั้นตอนที่นี่</p>';
+      return;
+    }
+    var u = UNITS[S.unit].n;
+    var per = Math.pow(UNITS[S.unit].f, 3) / CUFT; // ลบ.ฟุต ต่อ 1 ลบ.หน่วย
+    var conv;
+    if (S.unit === 'ft') {
+      conv = 'วัดเป็นฟุตอยู่แล้ว ไม่ต้องแปลง = <b>' + fmt(c.cft, S.dec) + ' ลบ.ฟุต</b> ต่อ 1 กล่อง';
+    } else if (per < 1) {
+      var d = 1 / per;
+      conv = '÷ ' + fmtT(d, d > 1e6 ? 0 : 2) + ' = <b>' + fmt(c.cft, S.dec) + ' ลบ.ฟุต</b> ต่อ 1 กล่อง';
+    } else {
+      conv = '× ' + fmtT(per, 4) + ' = <b>' + fmt(c.cft, S.dec) + ' ลบ.ฟุต</b> ต่อ 1 กล่อง';
+    }
+    var steps = [
+      ['ขนาดที่วัด', fmtT(c.w, 4) + ' × ' + fmtT(c.l, 4) + ' × ' + fmtT(c.h, 4) + ' ' + u],
+      ['คูณกัน ได้ปริมาตร', fmtT(c.vol, 3) + ' ลบ.' + u],
+      ['แปลงเป็นลูกบาศก์ฟุต', conv],
+      ['คูณจำนวนกล่อง', '× ' + fmtT(c.q, 0) + ' กล่อง = <b>' + fmt(c.tot, S.dec) + ' ลบ.ฟุต</b> หรือ <b>' + fmt(c.cbm, cbmDec()) + ' CBM</b>']
+    ];
+    var html = '<p class="note" style="margin:0 0 12px">ขั้นตอนของ <b>' + title + '</b> (แตะช่องของรายการอื่นเพื่อสลับดู)</p><ol class="steps">';
+    for (i = 0; i < steps.length; i++) {
+      html += '<li><span class="badge">' + (i + 1) + '</span><div><div class="st-k">' + steps[i][0] + '</div><div class="st-v">' + steps[i][1] + '</div></div></li>';
+    }
+    html += '</ol><p class="note">คำนวณจากค่าเต็ม ไม่ใช่ค่าที่ปัดเศษแล้ว ผลรวมจึงอาจต่างจากการคูณค่าที่ปัดเศษเล็กน้อย</p>';
+    elHow.innerHTML = html;
+  }
+
+  function summaryText() {
+    var u = UNITS[S.unit].n, lines = ['สรุปการคำนวณ CFT (วัดขนาดเป็น ' + u + ')'], n = 0, tc = 0, tb = 0, tq = 0;
+    S.rows.forEach(function (r, i) {
+      var c = calc(r);
+      var nm = r.name.trim() || ('รายการที่ ' + (i + 1));
+      if (!c.ok) { lines.push((i + 1) + '. ' + nm + ': ข้อมูลไม่ครบ'); return; }
+      n++; tc += c.tot; tb += c.cbm; tq += c.q;
+      lines.push((i + 1) + '. ' + nm + ': ' + fmtT(c.w, 4) + '×' + fmtT(c.l, 4) + '×' + fmtT(c.h, 4) + ' ' + u + ' × ' + fmtT(c.q, 0) + ' กล่อง = ' + fmt(c.tot, S.dec) + ' CFT (' + fmt(c.cbm, cbmDec()) + ' CBM)');
+    });
+    lines.push('รวม ' + fmtT(tq, 0) + ' กล่อง: ' + fmt(tc, S.dec) + ' CFT / ' + fmt(tb, cbmDec()) + ' CBM');
+    return lines.join('\n');
+  }
+
+  var statusTimer;
+  function say(t) {
+    $('status').textContent = t;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(function () { $('status').textContent = ''; }, 3000);
+  }
+
+  function rowOf(el) { var row = el.closest ? el.closest('.row') : null; return row ? +row.dataset.id : null; }
+  function findRow(id) { return S.rows.filter(function (r) { return r.id === id; })[0]; }
+
+  elItems.addEventListener('input', function (e) {
+    var el = e.target, id = rowOf(el), k = el.dataset && el.dataset.k;
+    if (id == null || !k) return;
+    findRow(id)[k] = el.value;
+    S.active = id; S.example = false;
+    update();
+  });
+  elItems.addEventListener('focusin', function (e) {
+    var id = rowOf(e.target);
+    if (id != null && S.active !== id) { S.active = id; renderHow(); }
+  });
+  elItems.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.rm') : null;
+    if (!btn) return;
+    var id = rowOf(btn);
+    S.rows = S.rows.filter(function (r) { return r.id !== id; });
+    if (S.active === id) S.active = null;
+    S.example = false;
+    build();
+    var add = $('add'); if (add) add.focus();
+  });
+  $('units').addEventListener('change', function (e) {
+    if (e.target && e.target.name === 'unit') { S.unit = e.target.value; S.example = false; update(); }
+  });
+  $('dec').addEventListener('change', function (e) { S.dec = +e.target.value; update(); });
+  $('add').addEventListener('click', function () {
+    var r = blankRow();
+    S.rows.push(r); S.active = r.id; S.example = false;
+    build();
+    var inp = $('r' + r.id + '-w'); if (inp) inp.focus();
+  });
+  $('reset').addEventListener('click', function () {
+    var r = blankRow();
+    S.rows = [r]; S.active = r.id; S.example = false;
+    build();
+    var inp = $('r' + r.id + '-w'); if (inp) inp.focus();
+  });
+  $('copy').addEventListener('click', function () {
+    var t = summaryText(), fb = $('fallback');
+    function manual() {
+      fb.value = t; fb.style.display = 'block'; fb.focus(); fb.select();
+      say('คัดลอกอัตโนมัติไม่ได้ เลือกข้อความด้านล่างแล้วคัดลอกเอง');
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).then(function () { fb.style.display = 'none'; say('คัดลอกสรุปแล้ว'); }, manual);
+      } else { manual(); }
+    } catch (err) { manual(); }
+  });
+
+  function start(data) {
+    S = (data && data.rows) ? data : defaults();
+    uid = 0;
+    S.rows.forEach(function (r) { if (r.id > uid) uid = r.id; });
+    build();
+  }
+  if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function () { return S; });
+  if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(start);
+  else start((window.claude && window.claude.hot && window.claude.hot.data) || {});
+})();
+</script>
+</body>
+</html>
